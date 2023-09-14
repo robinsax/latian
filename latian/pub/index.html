@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>latian</title>
+
+        <style>
+            .invisible {
+                opacity: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <pre id="terminal"></pre>
+        <input type="text" id="input"/>
+        <script>
+            const lines = [];
+            const terminal = document.getElementById('terminal');
+            const input = document.getElementById('input');
+            input.focus();
+
+            input.addEventListener('change', async () => {
+                const message = input.value;
+                input.value = '';
+
+                await fetch('/message', {
+                    method: 'POST',
+                    body: JSON.stringify([message])
+                });
+            });
+            
+            (async () => {
+                while (true) {
+                    const resp = await fetch('/message');
+                    const messages = await resp.json();
+
+                    for (const message of messages) {
+                        if (message.startsWith('@unwrite')) {
+                            const count = +message.split(':')[1];
+                            lines.splice(lines.length - count, count);
+                        }
+                        else {
+                            lines.push(message);
+                        }
+                    }
+                    terminal.innerText = lines.join('');
+
+                    const lastLine = lines[lines.length - 1] || '';
+                    input.className = lastLine.contains('>') ? '' : 'invisible';
+                }
+            })();
+        </script>
+    </body>
+</html>
