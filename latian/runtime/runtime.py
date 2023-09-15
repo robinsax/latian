@@ -7,7 +7,7 @@ from ..io import IO
 from ..dal import DAL
 from ..cli import CLIArgs
 from ..actions import ActionFn
-from ..common import ImplementationRegistry
+from ..common import Implementations
 
 class Runtime:
     io_factory: Callable[[], IO]
@@ -24,7 +24,7 @@ class Runtime:
         self.io_factory = io_factory
         self.args = args
     
-    async def run(self, actions: ImplementationRegistry[ActionFn]):
+    async def run(self, actions: Implementations[ActionFn]):
         raise NotImplementedError()
 
-runtimes = ImplementationRegistry[Type[Runtime]]()
+runtimes = Implementations[Type[Runtime]]()

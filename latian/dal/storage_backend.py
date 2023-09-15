@@ -8,9 +8,7 @@ from typing import TypeVar, Union, Type, Any
 
 from ..cli import CLIArgs
 from ..model import Model
-from ..common import ImplementationRegistry
-
-storage_backends = ImplementationRegistry()
+from ..common import Implementations
 
 class Aggregation(Enum):
     sum = 'sum'
@@ -51,3 +49,5 @@ class StorageBackend:
         self, Target: Type[T], filter: dict[str, Any] = None
     ):
         raise NotImplementedError()
+
+storage_backends = Implementations[Type[StorageBackend]]()

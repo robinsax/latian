@@ -6,11 +6,11 @@ from typing import Callable, Coroutine
 
 from ..io import IO
 from ..dal import DAL
-from ..common import ImplementationRegistry
+from ..common import Implementations
 
 ActionFn = Callable[[DAL, IO], Coroutine]
 
-actions = ImplementationRegistry[ActionFn]()
+actions = Implementations[ActionFn]()
 
 # Load action implementations.
 from . import session, report, add_exercise, configure

@@ -6,13 +6,13 @@ import asyncio
 from ..io import IO
 from ..model import create_default_config
 from ..actions import ActionFn
-from ..common import Exit, ImplementationRegistry
+from ..common import Exit, Implementations
 from .runtime import Runtime, runtimes
 
 @runtimes.implementation('multi')
 class MultiUserRuntime(Runtime):
 
-    async def run(self, actions: ImplementationRegistry[ActionFn]):
+    async def run(self, actions: Implementations[ActionFn]):
         while True:
             io = self.io_factory()
             await io.bind()
@@ -20,7 +20,7 @@ class MultiUserRuntime(Runtime):
             asyncio.create_task(self.run_one(io, actions))
 
     async def run_one(
-        self, io: IO, actions: ImplementationRegistry[ActionFn]
+        self, io: IO, actions: Implementations[ActionFn]
     ):
         dal = self.dal_factory()
 

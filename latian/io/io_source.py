@@ -1,13 +1,11 @@
 '''
 Abstract base and implementation registry of I/O sources.
 '''
-from typing import Callable, Any
+from typing import Callable, Type, Any
 
 from ..cli import CLIArgs
 from ..model import Event
-from ..common import ImplementationRegistry
-
-io_sources = ImplementationRegistry()
+from ..common import Implementations
 
 class IOSource:
     args: CLIArgs
@@ -41,3 +39,5 @@ class IOSource:
 
     def unwrite_messages(self, count: int):
         raise NotImplementedError()
+
+io_sources = Implementations[Type[IOSource]]()

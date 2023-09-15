@@ -67,7 +67,6 @@ class WebSocketIOServer:
                 out_data = json.dumps(await txq.get())
                 if closed:
                     break
-                print('send %s'%out_data)
 
                 try:
                     await socket.send_str(out_data)
@@ -88,7 +87,6 @@ class WebSocketIOServer:
                     await rxq.put(CLOSE_SIGNAL)
                     break
 
-                print('recv %s'%in_data)
                 await rxq.put(json.loads(in_data)['input'])
 
         await asyncio.gather(send(), receive())

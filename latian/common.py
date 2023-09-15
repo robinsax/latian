@@ -5,7 +5,7 @@ class Exit(BaseException):
     pass
 
 T = TypeVar('T')
-class ImplementationRegistry(Generic[T]):
+class Implementations(Generic[T]):
     '''Registry for named implementations of an interface.'''
     _registry: dict[str, T]
 
