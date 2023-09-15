@@ -1,20 +1,30 @@
 '''
-A runtime that can handle a single default user, once.
+A runtime that can handle a single user, once.
 '''
+import asyncio
+
+from ..io import IO
 from ..model import create_default_config
 from ..actions import ActionFn
 from ..common import Exit, ImplementationRegistry
 from .runtime import Runtime, runtimes
 
-@runtimes.implementation('simple')
-class SimpleRuntime(Runtime):
+@runtimes.implementation('multi')
+class MultiUserRuntime(Runtime):
 
     async def run(self, actions: ImplementationRegistry[ActionFn]):
-        io = self.io_factory()
+        while True:
+            io = self.io_factory()
+            await io.bind()
+
+            asyncio.create_task(self.run_one(io, actions))
+
+    async def run_one(
+        self, io: IO, actions: ImplementationRegistry[ActionFn]
+    ):
         dal = self.dal_factory()
 
-        await io.bind()
-        await dal.connect('default')
+        await dal.connect(await io.read_string('who are you?'))
 
         config = await dal.get_config()
         if not config:
@@ -37,5 +47,5 @@ class SimpleRuntime(Runtime):
         except Exit:
             io.write_message(config.exit_message)
         finally:
-            await io.unbind()
             await dal.disconnect()
+            await io.unbind()

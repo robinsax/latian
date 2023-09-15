@@ -1,22 +1,26 @@
-MODES = ('rep', 'timed')
+from typing import TypeVar, Generic, Callable
 
-class Exit(BaseException): pass
+class Exit(BaseException):
+    '''Exception indicating graceful exit.'''
+    pass
 
-class ImplementationRegistry:
-    _registry: dict = None
+T = TypeVar('T')
+class ImplementationRegistry(Generic[T]):
+    '''Registry for named implementations of an interface.'''
+    _registry: dict[str, T]
 
     def __init__(self):
         self._registry = dict()
 
-    def implementation(self, name: str):
-        def decorator(implementation):
+    def implementation(self, name: str) -> Callable:
+        def decorator(implementation: T):
             self._registry[name] = implementation
 
         return decorator
 
     @property
-    def names(self):
+    def names(self) -> list[str]:
         return list(self._registry.keys())
 
-    def get(self, name):
+    def get(self, name) -> T:
         return self._registry.get(name)

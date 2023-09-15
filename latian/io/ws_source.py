@@ -1,3 +1,9 @@
+'''
+I/O source implementation using a websocket server and associated
+frontend.
+
+Transacts JSON Websocket messages.
+'''
 import io
 import json
 import asyncio
@@ -5,99 +11,123 @@ from aiohttp import web
 from asyncio import Queue
 from typing import Callable, Any, Coroutine
 
+from ..cli import CLIArgs
 from ..model import Event
 from ..common import Exit
-from .source import IOSource, io_sources
+from .io_source import IOSource, io_sources
 
 FRONTEND_ASSET = 'latian/io/ws_source.html'
 CLOSE_SIGNAL = '<<close>>'
 
-async def create_server(
-    port: int, in_queue: Queue, out_queue: Queue
-) -> Callable[[], Coroutine]:
-    index_html = None
+def _load_index() -> str:
     with io.open(FRONTEND_ASSET, encoding='utf-8') as asset_io:
-       index_html = asset_io.read()
+       return asset_io.read()
+
+class WebSocketIOServer:
+    '''Singleton WebSocket server.'''
+    instance: 'WebSocketIOServer' = None
+    args: CLIArgs
+    socket_queue: Queue[tuple[Queue, Queue]]
+    port: int
+
+    @classmethod
+    async def next_socket(cls, args: CLIArgs) -> tuple[Queue, Queue]:
+        if not cls.instance:
+            cls.instance = cls(args)
+            await cls.instance.start()
+
+        return await cls.instance.socket_queue.get()
     
-    index_html = index_html.replace('$PORT', str(port))
+    def __init__(self, args: CLIArgs):
+        self.args = args
+        self.socket_queue = Queue()
+        self.port = self.args.get('port')
 
-    server = web.Application()
-
-    async def get_index(req):
+    async def index(self, req: web.Request):
         return web.Response(
-            text=index_html,
+            text=_load_index().replace('$PORT', str(self.port)),
             content_type='text/html'
         )
     
-    async def handle_socket(req):
+    async def socket(self, req: web.Request):
         socket = web.WebSocketResponse()
         await socket.prepare(req)
 
+        in_queue = Queue()
+        out_queue = Queue()
+        closed = False
+        print('client available')
+        await self.socket_queue.put((in_queue, out_queue))
+
         async def send():
+            nonlocal closed
+
             while True:
                 out_data = await out_queue.get()
+                if closed:
+                    return
                 print('send %s'%out_data)
 
                 try:
                     await socket.send_str(out_data)
                 except ConnectionResetError:
-                    print('client disconnect')
+                    closed = True
                     await in_queue.put(CLOSE_SIGNAL)
                     break
 
-        async def recieve():
-            while True:
+        async def receive():
+            nonlocal closed
+
+            while not closed:
                 in_data = None
                 try:
                     in_data = await socket.receive_str()
                 except TypeError:
+                    closed = True
                     await in_queue.put(CLOSE_SIGNAL)
                     break
 
                 print('recv %s'%in_data)
                 await in_queue.put(json.loads(in_data)['input'])
 
-        await asyncio.gather(send(), recieve())
+        await asyncio.gather(send(), receive())
 
         return socket
 
-    server.add_routes((
-        web.get('/', get_index),
-        web.get('/ws', handle_socket)
-    ))
-    
-    runner = web.AppRunner(server)
-    await runner.setup()
+    async def start(self):        
+        server = web.Application()
+        server.add_routes((
+            web.get('/', lambda req: self.index(req)),
+            web.get('/ws', lambda req: self.socket(req))
+        ))
+        
+        runner = web.AppRunner(server)
+        await runner.setup()
 
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    await site.start()
-    print('serving http://localhost:%d'%port)
-
-    async def stop():
-        await site.stop()
-        await runner.cleanup()
-        print('server off')
-    return stop
+        site = web.TCPSite(runner, '0.0.0.0', self.port)
+        await site.start()
+        print('serving http://localhost:%d'%self.port)
 
 @io_sources.implementation('ws')
 class WebSocketIOSource(IOSource):
-    stop_server: Callable[[], Coroutine] = False
-    in_queue: Queue = None
-    out_queue: Queue = None
+    stop_server: Callable[[], Coroutine]
+    in_queue: Queue
+    out_queue: Queue
     
-    def __init__(self, cli_args):
-        super().__init__(cli_args)
-        self.stop_server = False
-        self.in_queue = Queue()
-        self.out_queue = Queue()
+    def __init__(self, args):
+        super().__init__(args)
+        self.stop_server = None
+        self.in_queue = None
+        self.out_queue = None
 
     async def bind(self):
-        self.stop_server = await create_server(
-            self.cli_args.get('port'), self.in_queue, self.out_queue
+        self.in_queue, self.out_queue = (
+            await WebSocketIOServer.next_socket(self.args)
         )
+        print('io source bound')
 
     async def unbind(self):
-        await self.stop_server()
+        pass
 
     def _push_out(self, data_type: str, data: dict = None):
         raw_out = json.dumps({
@@ -113,8 +143,6 @@ class WebSocketIOSource(IOSource):
         options: list[str] = None,
         validator_fn: Callable[[str], Any] = None
     ) -> Any:
-        if message:
-            message = 'pick %s'%message
         if options:
             def validate(value):
                 if not value in options:
@@ -132,6 +160,7 @@ class WebSocketIOSource(IOSource):
         while True:
             value = await self.in_queue.get()
             if value == CLOSE_SIGNAL:
+                print('client disconnect')
                 raise Exit()
             if validator_fn:
                 try:
@@ -157,7 +186,7 @@ class WebSocketIOSource(IOSource):
     def write_event(self, event: Event, prefix: str):
         self._push_out('event', {
             'prefix': prefix,
-            'mode': event.mode,
+            'type': event.type,
             'exercise': event.exercise,
             'value': event.value
         })

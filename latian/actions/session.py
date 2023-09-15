@@ -2,52 +2,58 @@ from random import randint
 from datetime import datetime
 
 from ..io import IO
-from ..dal import DAL, Event
-from ..common import MODES
+from ..dal import DAL
+from ..model import EXERCISE_TYPES, Event, Exercise
 from . import actions
 
 @actions.implementation('start session')
 async def session_action(dal: DAL, io: IO):
-    while True:
-        mode = await io.read_selection((*MODES, 'random'), 'mode')
-        is_random = mode == 'random'
-        if is_random:
-            mode = MODES[randint(0, 1)]
+    config = await dal.get_config()
 
-        exercises = dal.get_exercises(mode)
+    while True:
+        type = await io.read_choice((*EXERCISE_TYPES, 'random'), 'mode')
+        is_random = type == 'random'
+        if is_random:
+            type = EXERCISE_TYPES[randint(0, 1)]
+
+        exercises = await dal.get_exercises(type)
         if not len(exercises):
             await io.read_signal('add exercises first')
             return
 
-        exercise: str = None
+        name: str = None
         if is_random:
-            exercise = exercises[randint(0, len(exercises) - 1)]
+            name = exercises[randint(0, len(exercises) - 1)].name
 
-            title = '%s (%s)'%(exercise, mode)
-            if await io.read_selection(('yes', 'no'), title) == 'no':
+            title = '%s (%s)'%(name, type)
+            if await io.read_choice(('yes', 'no'), title) == 'no':
                 continue
         else:
-            exercise = await io.read_selection(exercises, 'which')
+            names = list(
+                exercise.name for exercise in exercises
+            )
+            name = await io.read_choice(names, 'which')
 
         event = Event(
-            mode=mode,
-            exercise=exercise,
+            type=type,
+            exercise=name,
             value=0,
             when=datetime.now()
         )
         if event.is_rep:
             event.value = await io.read_int('how many?', min=1)
         else:
-            delay = dal.config.timer_delay_seconds
             start = datetime.now()
 
-            with io.timer(delay):
+            with io.timer(config.timer_delay_seconds):
                 await io.read_signal()
-
-            event.value = (datetime.now() - start).seconds - delay
+            event.value = (
+                (datetime.now() - start).seconds -
+                config.timer_delay_seconds
+            )
             if event.value < 0:
                 continue
 
         io.write_event(event, prefix='+')
-        dal.push_event(event)
-        dal.commit()
+        await dal.create_event(event)
+        await dal.commit()

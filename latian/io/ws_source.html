@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+    <!-- Frontend for the Websocket I/O source. -->
     <head>
         <title>latian</title>
 
@@ -104,6 +105,10 @@
                 margin-bottom: 8px;
             }
 
+            .message.heading {
+                font-size: 24px;
+            }
+
             .width-a {
                 display: inline-block;
                 vertical-align: top;
@@ -143,6 +148,8 @@
             const PORT = '$PORT';
 
             const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+            const makeClass = set => set.filter(check => check).join(' ');
 
             const formatDuration = seconds => {
                 const negative = seconds < 0;
@@ -198,18 +205,27 @@
 
             const components = {
                 message: ({ data: message }) => (
-                    h('div', { class: 'message' }, message)
+                    h('div', {
+                        class: makeClass([
+                            'message',
+                            message.startsWith('-') &&
+                            message.endsWith('-') &&
+                            'heading'
+                        ])
+                    }, (
+                        message
+                    ))
                 ),
                 input: ({
                     data: { options, signal_only, message, invalid },
                     sendInput
                 }) => (
                     h('div', {
-                        class: [
+                        class: makeClass([
                             'input',
                             invalid && 'invalid',
                             signal_only && 'signal-only'
-                        ].filter(check => check).join(' ')
+                        ])
                     }, [
                         h('div', { class: 'input-label' }, message),
                         signal_only ?
@@ -258,13 +274,13 @@
 
                     return h('dev', { class: 'timer' }, formatDuration(time));
                 },
-                event: ({ data: { mode, exercise, value, prefix } }) => (
+                event: ({ data: { type, exercise, value, prefix } }) => (
                     h('div', { class: 'message' }, [
                         prefix && h('div', { class: 'secondary width-a' }, prefix),
                         h('div', { class: 'width-b' }, exercise),
-                        h('div', { class: 'secondary width-a' }, mode),
+                        h('div', { class: 'secondary width-a' }, type),
                         h('div', { class: 'width-b' }, (
-                            mode == 'rep' ?
+                            type == 'rep' ?
                                 'x' + value
                             :
                                 formatDuration(value)

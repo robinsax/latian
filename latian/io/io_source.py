@@ -1,15 +1,19 @@
+'''
+Abstract base and implementation registry of I/O sources.
+'''
 from typing import Callable, Any
 
-from ..common import ImplementationRegistry
+from ..cli import CLIArgs
 from ..model import Event
+from ..common import ImplementationRegistry
 
 io_sources = ImplementationRegistry()
 
 class IOSource:
-    cli_args = None
+    args: CLIArgs
 
-    def __init__(self, cli_args):
-        self.cli_args = cli_args
+    def __init__(self, args: CLIArgs):
+        self.args = args
 
     async def bind(self):
         raise NotImplementedError()

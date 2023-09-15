@@ -1,15 +1,14 @@
+'''
+Command line argument parser.
+'''
 import sys
 from typing import Any
 
-from .io import io_sources
-from .dal import storage_backends
-from .runtime import runtimes
-
 class CLIArgs:
-    arguments: list[str] = None
-    schema: dict[tuple] = None
+    arguments: list[str]
+    schema: dict[str, tuple]
 
-    def __init__(self, arguments: list[str], schema: dict[tuple]):
+    def __init__(self, arguments: list[str], schema: dict[str, tuple]):
         self.arguments = arguments
         self.schema = schema
 

@@ -1,3 +1,6 @@
+'''
+I/O source implementation using stdin/out, the terminal.
+'''
 from time import sleep
 from typing import Callable, Any
 from threading import Thread
@@ -5,7 +8,7 @@ from datetime import datetime, timedelta
 
 from ..model import Event
 from ..common import Exit
-from .source import IOSource, io_sources
+from .io_source import IOSource, io_sources
 
 def _format_duration(seconds: int):
     if seconds < 0:
@@ -13,11 +16,14 @@ def _format_duration(seconds: int):
     return '%dm%ds'%(int(seconds/60), seconds%60)
 
 class TimerThread(Thread):
+    '''Thread that writes an updating timer to stdout.'''
     stop: bool = False
     
     def __init__(self, delay_seconds: int):
         super().__init__()
-        self.start_time = datetime.now() + timedelta(seconds=delay_seconds)
+        self.start_time = (
+            datetime.now() + timedelta(seconds=delay_seconds)
+        )
 
     def stop_timer(self):
         self.stop = True
@@ -29,7 +35,9 @@ class TimerThread(Thread):
             if now < self.start_time:
                 seconds = -(self.start_time - now).seconds
 
-            print('\r%s%s'%(_format_duration(seconds), ' '*10), end=str())
+            print('\r%s%s'%(
+                _format_duration(seconds), ' '*10
+            ), end=str())
             sleep(0.1)
 
 @io_sources.implementation('std')
@@ -51,7 +59,7 @@ class StandardIOSource(IOSource):
         temp_messages = 0
         if message:
             if options:
-                message = 'pick %s:'%message
+                message = '%s:'%message
             self.write_message(message)
             temp_messages += 1
         if options:
