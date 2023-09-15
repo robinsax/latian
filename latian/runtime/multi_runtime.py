@@ -1,5 +1,5 @@
 '''
-A runtime that can handle a single user, once.
+A runtime that can serve multiple different users concurrently.
 '''
 import asyncio
 
