@@ -7,6 +7,6 @@ This project is intentionally *very* over-engineered, it's also a series of desi
 ```bash
 pip3 install -r requirements.txt
 
-python3 latian        # Terminal view
-python3 latian -i ws  # Web view
+python3 latian                 # Terminal view.
+python3 latian -i ws -r multi  # Web view.
 ```

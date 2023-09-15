@@ -1,3 +1,7 @@
+'''
+Factory that collects the configured application in an asynchonous
+callable.
+'''
 import sys
 from typing import Callable, Coroutine
 
@@ -9,10 +13,6 @@ from .actions import actions
 from .runtime import runtimes
 
 def create_application() -> Callable[[], Coroutine]:
-    '''
-    Initialize the application and return an asynchronous callable to
-    launch it.
-    '''
     args = CLIArgs(sys.argv[1:], {
         'help': (
             ('--help', '-h'),
@@ -21,7 +21,7 @@ def create_application() -> Callable[[], Coroutine]:
         ),
         'io': (
             ('--io', '-i'),
-            'specify i/o type',
+            'specify io type',
             {
                 'value': io_sources.names,
                 'default': io_sources.names[0]

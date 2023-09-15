@@ -11,7 +11,10 @@ async def session_action(dal: DAL, io: IO):
     config = await dal.get_config()
 
     while True:
-        type = await io.read_choice((*EXERCISE_TYPES, 'random'), 'mode')
+        type = await io.read_choice(
+            (*EXERCISE_TYPES, 'random'),
+            'exercise type'
+        )
         is_random = type == 'random'
         if is_random:
             type = EXERCISE_TYPES[randint(0, 1)]
@@ -41,7 +44,7 @@ async def session_action(dal: DAL, io: IO):
             when=datetime.now()
         )
         if event.is_rep:
-            event.value = await io.read_int('how many?', min=1)
+            event.value = await io.read_int('how many?', min=0)
         else:
             start = datetime.now()
 
@@ -51,8 +54,17 @@ async def session_action(dal: DAL, io: IO):
                 (datetime.now() - start).seconds -
                 config.timer_delay_seconds
             )
-            if event.value < 0:
-                continue
+        if event.value <= 0:
+            continue
+
+        totals = await dal.compute_exercise_totals(type)
+        if event.is_milestone(totals[name], config):
+            dummy_event = Event(
+                exercise='milestone %s!'%name,
+                type=type,
+                value=totals[name] + event.value
+            )
+            io.write_event(dummy_event, prefix='+')
 
         io.write_event(event, prefix='+')
         await dal.create_event(event)

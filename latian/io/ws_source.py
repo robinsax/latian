@@ -1,15 +1,15 @@
 '''
-I/O source implementation using a websocket server and associated
+I/O source implementation using a WebSocket server and associated
 frontend.
 
-Transacts JSON Websocket messages.
+Transacts JSON WebSocket messages.
 '''
 import io
 import json
 import asyncio
 from aiohttp import web
 from asyncio import Queue
-from typing import Callable, Any, Coroutine
+from typing import Callable, Any
 
 from ..cli import CLIArgs
 from ..model import Event
@@ -53,26 +53,27 @@ class WebSocketIOServer:
         socket = web.WebSocketResponse()
         await socket.prepare(req)
 
-        in_queue = Queue()
-        out_queue = Queue()
+        rxq = Queue()
+        txq = Queue()
         closed = False
+
+        await self.socket_queue.put((rxq, txq))
         print('client available')
-        await self.socket_queue.put((in_queue, out_queue))
 
         async def send():
             nonlocal closed
 
             while True:
-                out_data = await out_queue.get()
+                out_data = json.dumps(await txq.get())
                 if closed:
-                    return
+                    break
                 print('send %s'%out_data)
 
                 try:
                     await socket.send_str(out_data)
                 except ConnectionResetError:
                     closed = True
-                    await in_queue.put(CLOSE_SIGNAL)
+                    await rxq.put(CLOSE_SIGNAL)
                     break
 
         async def receive():
@@ -84,11 +85,11 @@ class WebSocketIOServer:
                     in_data = await socket.receive_str()
                 except TypeError:
                     closed = True
-                    await in_queue.put(CLOSE_SIGNAL)
+                    await rxq.put(CLOSE_SIGNAL)
                     break
 
                 print('recv %s'%in_data)
-                await in_queue.put(json.loads(in_data)['input'])
+                await rxq.put(json.loads(in_data)['input'])
 
         await asyncio.gather(send(), receive())
 
@@ -110,18 +111,16 @@ class WebSocketIOServer:
 
 @io_sources.implementation('ws')
 class WebSocketIOSource(IOSource):
-    stop_server: Callable[[], Coroutine]
-    in_queue: Queue
-    out_queue: Queue
+    rxq: Queue
+    txq: Queue
     
     def __init__(self, args):
         super().__init__(args)
-        self.stop_server = None
-        self.in_queue = None
-        self.out_queue = None
+        self.rxq = None
+        self.txq = None
 
     async def bind(self):
-        self.in_queue, self.out_queue = (
+        self.rxq, self.txq = (
             await WebSocketIOServer.next_socket(self.args)
         )
         print('io source bound')
@@ -130,11 +129,10 @@ class WebSocketIOSource(IOSource):
         pass
 
     def _push_out(self, data_type: str, data: dict = None):
-        raw_out = json.dumps({
+        self.txq.put_nowait({
             'type': data_type,
             'data': data
         })
-        self.out_queue.put_nowait(raw_out)
 
     async def read_input(
         self,
@@ -158,7 +156,7 @@ class WebSocketIOSource(IOSource):
 
         value = None
         while True:
-            value = await self.in_queue.get()
+            value = await self.rxq.get()
             if value == CLOSE_SIGNAL:
                 print('client disconnect')
                 raise Exit()

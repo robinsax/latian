@@ -7,7 +7,7 @@ from ..model import Event, Config, Exercise
 from .storage_backend import StorageBackend, Aggregation
 
 class DAL:
-    _backend: StorageBackend = None
+    _backend: StorageBackend
 
     def __init__(self, backend: StorageBackend):
         self._backend = backend

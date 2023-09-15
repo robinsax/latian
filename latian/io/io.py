@@ -9,8 +9,8 @@ from .io_source import IOSource
 
 class MessageUnwriteContext:
     '''Context manager that causes message remove when it ends.'''
-    io: 'IO' = None
-    count: int = 0
+    io: 'IO'
+    count: int
 
     def __init__(self, io: 'IO', count: int):
         self.io = io
@@ -27,7 +27,7 @@ class MessageUnwriteContext:
 
 class TimerUnwriteContext:
     '''Context manager that removes a timer when it ends.'''
-    stop_fn: Callable = None
+    stop_fn: Callable
 
     def __init__(self, stop_fn: Callable):
         self.stop_fn = stop_fn
@@ -42,7 +42,7 @@ class TimerUnwriteContext:
             raise ExType(exc_value).with_traceback(exc_traceback)
 
 class IO:
-    _source: IOSource = None
+    _source: IOSource
 
     def __init__(self, source: IOSource):
         self._source = source
