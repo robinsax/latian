@@ -33,13 +33,8 @@ class DAL:
 
         for event_dict in self._backend.get_events():
             self._events.append(Event.from_dict(event_dict))
-        self._exercises = self._backend.get_exercises()
-        if not self._exercises:
-            self._exercises = {
-                'rep': [],
-                'timed': []
-            }
 
+        self._exercises = self._backend.get_exercises()
         self._config = Config.from_dict(self._backend.get_config())
 
     def commit(self):

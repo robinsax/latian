@@ -4,24 +4,24 @@ from ..model import Config
 from . import actions
 
 @actions.implementation('configure')
-def configure_action(dal: DAL, io: IO):
-    with io.temporary_line('let\'s set things up'):
+async def configure_action(dal: DAL, io: IO):
+    with io.temporary_message('let\'s set things up'):
         for attr in Config.attributes():
             if attr.name == 'loaded':
                 continue
 
-            with io.temporary_line('%s:', ' '.join(attr.name.split('_'))):
-                typ = Config.__annotations__[attr.name]
+            attr_type = Config.__annotations__[attr.name]
+            attr_title = ' '.join(attr.name.split('_'))
 
-                value = None
-                if typ is str:
-                    value = io.read_string()
-                elif typ is int:
-                    value = io.read_int(min=1)
-                else:
-                    raise TypeError()
+            value = None
+            if attr_type is str:
+                value = await io.read_string(attr_title)
+            elif attr_type is int:
+                value = await io.read_int(attr_title, min=1)
+            else:
+                raise TypeError()
 
-                dal.update_config(attr.name, value)
+            dal.update_config(attr.name, value)
 
     dal.update_config('loaded', True)
     dal.commit()

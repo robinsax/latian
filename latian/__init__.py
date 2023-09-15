@@ -3,6 +3,7 @@ import sys
 from .dal import DAL, storage_backends
 from .io import IO, io_sources
 from .cli import CLIArgs
+from .common import Exit
 from .actions import actions
 from .runtime import Runtime, runtimes
 
@@ -69,6 +70,6 @@ def initialize() -> Runtime:
     RuntimeImpl = runtimes.get(args.get('runtime'))
 
     io = IO(IOSourceImpl(args))
-    dal = DAL(StorageBackendImpl(args.get('storage_dest')))
+    dal = DAL(StorageBackendImpl(args))
 
     return RuntimeImpl(dal, io, actions)

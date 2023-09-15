@@ -3,6 +3,7 @@ import os.path
 from typing import Any
 from datetime import datetime
 
+from ..common import MODES
 from .backend import StorageBackend, storage_backends
 
 DATETIME_FORMAT = '%d/%m/%Y %H:%M'
@@ -10,14 +11,19 @@ DATETIME_FORMAT = '%d/%m/%Y %H:%M'
 @storage_backends.implementation('file')
 class FileSystemStorageBackend(StorageBackend):
     file_path: str = None
-    events: list[dict] = list()
-    config: dict[Any] = dict()
-    exercises: dict[list[str]] = dict()
+    events: list[dict] = None
+    config: dict[Any] = None
+    exercises: dict[list[str]] = None
 
-    def __init__(self, target_str: str):
-        self.file_path = target_str
+    def __init__(self, cli_args):
+        super().__init__(cli_args)
+        self.file_path = None
+        self.events = list()
+        self.config = dict()
+        self.exercises = { key: list() for key in MODES }
 
     def connect(self) -> bool:
+        self.file_path = self.cli_args.get('storage_dest')
         if not os.path.isfile(self.file_path):
             return
 
@@ -53,7 +59,9 @@ class FileSystemStorageBackend(StorageBackend):
         return self.config
     
     def get_exercises(self) -> dict[list[str]]:
-        return self.exercises
+        return {
+            key: list(self.exercises[key]) for key in self.exercises
+        }
 
     def push_event(self, event: dict):
         self.events.append(event)

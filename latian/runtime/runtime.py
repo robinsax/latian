@@ -14,5 +14,5 @@ class Runtime:
         self.io = io
         self.actions = actions
     
-    def run(self):
+    async def run(self):
         raise NotImplementedError()

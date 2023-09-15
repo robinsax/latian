@@ -6,9 +6,10 @@ storage_backends = ImplementationRegistry()
 
 class StorageBackend:
     '''Persistant storage for domain objects.'''
+    cli_args = None
 
-    def __init__(self, target_str: str):
-        raise NotImplementedError()
+    def __init__(self, cli_args):
+        self.cli_args = cli_args
 
     def connect(self):
         raise NotImplementedError()

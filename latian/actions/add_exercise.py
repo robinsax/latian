@@ -4,11 +4,11 @@ from ..common import MODES
 from . import actions
 
 @actions.implementation('add exercise')
-def add_exercise_action(dal: DAL, io: IO):
-    with io.temporary_line('describe it'):
-        mode = io.read_selection(MODES, 'mode')
+async def add_exercise_action(dal: DAL, io: IO):
+    with io.temporary_message('describe it'):
+        mode = await io.read_selection(MODES, 'mode')
+        exercise = await io.read_string('name')
 
-        with io.temporary_line('name:'):
-            dal.push_exercise(mode, io.read_string())
+        dal.push_exercise(mode, exercise)
 
     dal.commit()
