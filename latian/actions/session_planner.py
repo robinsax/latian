@@ -33,7 +33,7 @@ async def _run_add(dal: DAL, io: IO):
                 break
 
             exercise_name = await io.read_choice(
-                *exercise_names_by_type[type], 'which',
+                exercise_names_by_type[type], 'which',
                 control_options=('back',)
             )
             if exercise_name == 'back':
