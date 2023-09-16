@@ -168,6 +168,10 @@ class FileSystemStorageBackend(StorageBackend):
  
         retain = list()
         if filter:
-            retain = self._filter(self.data[collection_name], filter)
-        
+            existing = self.data[collection_name]
+            delete = self._filter(existing, filter)
+            for item in existing:
+                if item not in delete:
+                    retain.append(item)
+
         self.data[collection_name] = retain

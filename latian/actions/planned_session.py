@@ -1,7 +1,7 @@
 from ..io import IO
 from ..dal import DAL
-from ..model import EXERCISE_TYPES, SessionPlan
-from .common import run_exercise
+from ..model import SessionPlan
+from .common import run_exercise, read_plan_choice
 from . import actions
 
 @actions.implementation('start planned session')
@@ -9,19 +9,9 @@ async def planned_session_action(dal: DAL, io: IO):
     config = await dal.get_config()
 
     plan: SessionPlan = None
-    plans = await dal.get_session_plans()
-    if not len(plans):
-        await io.read_signal('add session plan first')
-        return
-
-    plan_names = list(plan.name for plan in plans)
-
     while True:
-        plan_name = await io.read_choice(
-            plan_names, 'which', with_cancel=True
-        )
-        
-        plan = plans[plan_names.index(plan_name)]
+        plan = await read_plan_choice(dal, io)
+
         with io.temporary_write() as temp_out:
             temp_out.write_message(plan.name)
             for exercise in plan.exercises:

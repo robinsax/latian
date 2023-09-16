@@ -1,6 +1,7 @@
 from ..io import IO
 from ..dal import DAL
 from ..model import EXERCISE_TYPES, Exercise, SessionPlan
+from .common import read_plan_choice
 from . import actions
 
 async def _run_add(dal: DAL, io: IO):
@@ -17,7 +18,7 @@ async def _run_add(dal: DAL, io: IO):
         )
 
     with io.temporary_write() as temp_out:
-        temp_out.write_message('- new session plan -')
+        temp_out.write_message('new session plan')
 
         plan_name = await io.read_string('name')
         temp_out.write_message(plan_name)
@@ -32,7 +33,8 @@ async def _run_add(dal: DAL, io: IO):
                 break
 
             exercise_name = await io.read_choice(
-                (*exercise_names_by_type[type], 'back'), 'which'
+                *exercise_names_by_type[type], 'which',
+                control_options=('back',)
             )
             if exercise_name == 'back':
                 continue
@@ -42,7 +44,7 @@ async def _run_add(dal: DAL, io: IO):
                 name=exercise_name
             )
             exercises.append(exercise)
-            temp_out.write_exercise(exercise)
+            temp_out.write_exercise(exercise, prefix='-')
 
         await dal.create_session_plan(SessionPlan(
             name=plan_name,
@@ -52,18 +54,31 @@ async def _run_add(dal: DAL, io: IO):
     await dal.commit()
 
 async def _run_delete(dal: DAL, io: IO):
-    pass
+    plan = await read_plan_choice(dal, io)
+    
+    with io.temporary_write() as temp_out:
+        temp_out.write_message(plan.name)
+        for exercise in plan.exercises:
+            temp_out.write_exercise(exercise, prefix='-')
+
+        if not await io.read_confirm('delete this?'):
+            return
+
+    await dal.delete_session_plan(plan)
+    await dal.commit()
 
 @actions.implementation('session planner')
 async def session_planner_action(dal: DAL, io: IO):
-    mode = await io.read_choice(
-        ('create new', 'delete'), 'do what',
-        control_options=('cancel',)
-    )
-    if mode == 'cancel':
-        return
+    with io.temporary_write() as temp_out:
+        temp_out.write_message('- session planner -')
 
-    if mode == 'create new':
-        await _run_add(dal, io)
-    else:
-        await _run_delete(dal, io)
+        mode = await io.read_choice(
+            ('create new', 'delete'), 'do what',
+            control_options=('cancel',)
+        )
+        if mode == 'cancel':
+            return
+        elif mode == 'create new':
+            await _run_add(dal, io)
+        else:
+            await _run_delete(dal, io)

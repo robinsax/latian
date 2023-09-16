@@ -87,6 +87,11 @@ class DAL:
         )
         await self._backend.create(plan)
 
+    async def delete_session_plan(self, plan: SessionPlan):
+        await self._backend.delete(
+            SessionPlan, { 'name': plan.name }
+        )
+
     async def set_config(self, config: Config):
         await self._backend.delete(Config)
         await self._backend.create(config)

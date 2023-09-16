@@ -2,7 +2,21 @@ from datetime import datetime
 
 from ..io import IO, IOWriter
 from ..dal import DAL
-from ..model import Exercise, Event, Config
+from ..model import Exercise, Event, Config, SessionPlan
+from ..common import Reset
+
+async def read_plan_choice(dal: DAL, io: IO) -> SessionPlan:
+    plans = await dal.get_session_plans()
+    if not len(plans):
+        await io.read_signal('add session plan first')
+        raise Reset()
+
+    plan_names = list(plan.name for plan in plans)
+    plan_name = await io.read_choice(
+        plan_names, 'which', with_cancel=True
+    )
+
+    return plans[plan_names.index(plan_name)]
 
 async def run_exercise(
     io: IO, io_writer: IOWriter, dal: DAL, config: Config,
