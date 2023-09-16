@@ -117,10 +117,9 @@ class StandardIOSource(IOSource):
         print(message)
 
     def write_event(self, event: Event, prefix: str = None):
-        message = '%s%s'%(
-            event.exercise,
-            ' '*(40 - len(event.exercise))
-        )
+        message = '%s (%s)'%(event.exercise, event.type)
+        message = '%s%s'%(message, ' '*(40 - len(message)))
+
         if prefix:
             message = '%s %s'%(prefix, message)
 
