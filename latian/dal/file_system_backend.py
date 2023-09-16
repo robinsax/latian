@@ -111,14 +111,14 @@ class FileSystemStorageBackend(StorageBackend):
 
             return
 
-        raw_data = dict()
+        raw_data: dict = None
         with io.open(file_path, encoding='utf-8') as file_io:
             raw_data = json.load(file_io)
 
         self.data = dict()
         for collection_name, Type in self.schema.items():
             models = list()
-            for model_data in raw_data[collection_name]:
+            for model_data in raw_data.get(collection_name, list()):
                 models.append(
                     self._hydrate_model(Type, model_data)
                 )
@@ -157,7 +157,9 @@ class FileSystemStorageBackend(StorageBackend):
         return result
     
     async def create(self, model: Model):
-        self.data[model.__class__.collection_name()].append(model)
+        collection_name = model.__class__.collection_name()
+
+        self.data[collection_name].append(model)
     
     async def delete(
         self, Target: Type[T], filter: dict[str, Any] = None
