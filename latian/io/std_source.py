@@ -2,6 +2,7 @@
 I/O source implementation using stdin/out, the terminal.
 '''
 from time import sleep
+from asyncio import Event as AIOEvent
 from typing import Callable, Any
 from threading import Thread
 from datetime import datetime, timedelta
@@ -42,12 +43,17 @@ class TimerThread(Thread):
 
 @io_sources.implementation('std')
 class StandardIOSource(IOSource):
+    _bound: bool = False
 
     async def bind(self):
-        pass
+        if not self.__class__._bound:
+            self.__class__._bound = True
+            return
+
+        await AIOEvent().wait()
 
     async def unbind(self):
-        pass
+        return
 
     async def read_input(
         self,

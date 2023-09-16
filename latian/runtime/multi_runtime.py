@@ -25,7 +25,6 @@ class MultiUserRuntime(Runtime):
         dal = self.dal_factory()
 
         user = await io.read_string('who are you?')
-        print('%s connected'%user)
         await dal.connect(user)
 
         config = await dal.get_config()
