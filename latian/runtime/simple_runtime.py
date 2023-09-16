@@ -14,7 +14,7 @@ class SimpleRuntime(Runtime):
         dal = self.dal_factory()
 
         await io.bind()
-        await dal.connect('default')
+        await dal.connect(self.args.get('user'))
 
         config = await dal.get_config()
         if not config:

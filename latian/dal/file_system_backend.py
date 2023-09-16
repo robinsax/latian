@@ -9,9 +9,7 @@ from datetime import datetime
 
 from ..cli import CLIArgs
 from ..model import Model
-from .storage_backend import (
-    T, StorageBackend, Aggregation, storage_backends
-)
+from .storage_backend import T, StorageBackend, storage_backends
 
 DATETIME_FORMAT = '%d/%m/%Y %H:%M'
 
@@ -20,7 +18,9 @@ class FileSystemStorageBackend(StorageBackend):
     data: dict
     user: str
 
-    def __init__(self, schema: dict[str, Type[Model]], args: CLIArgs):
+    def __init__(
+        self, schema: dict[str, Type[Model]], args: CLIArgs
+    ):
         super().__init__(schema, args)
         self.data = None
         self.user = None
@@ -38,6 +38,19 @@ class FileSystemStorageBackend(StorageBackend):
         model_schema = Type.schema()
         for key in model_schema:
             value = model_data[key]
+            if type(model_schema[key]) is list:
+                inner_type = model_schema[key][0]
+
+                hydrated_value = list()
+                for item in value:
+                    if issubclass(inner_type, Model):
+                        item = self._hydrate_model(
+                            inner_type, item
+                        )
+                    
+                    hydrated_value.append(item)
+                value = hydrated_value
+
             if model_schema[key] is datetime:
                 value = datetime.strptime(value, DATETIME_FORMAT)
             
@@ -52,6 +65,18 @@ class FileSystemStorageBackend(StorageBackend):
         model_schema = Type.schema()
         for key in model_schema:
             value = getattr(model, key)
+            if type(model_schema[key]) is list:
+                inner_type = model_schema[key][0]
+
+                dehydrated_value = list()
+                for item in value:
+                    if issubclass(inner_type, Model):
+                        item = self._dehydrate_model(
+                            inner_type, item
+                        )
+                    
+                    dehydrated_value.append(item)
+                value = dehydrated_value
             if model_schema[key] is datetime:
                 value = value.strftime(DATETIME_FORMAT)
 
@@ -121,8 +146,7 @@ class FileSystemStorageBackend(StorageBackend):
     async def query(
         self,
         Target: Type[T],
-        filter: dict[str, Any] = None,
-        aggregation: tuple[Aggregation, str] = None
+        filter: dict[str, Any] = None
     ) -> Union[list[T], int]:
         collection_name = Target.collection_name()
 
@@ -130,17 +154,6 @@ class FileSystemStorageBackend(StorageBackend):
         if filter:
             result = self._filter(result, filter)
 
-        if aggregation:
-            op, field = aggregation
-            if op == Aggregation.sum:
-                aggregate = 0
-                for model in result:
-                    aggregate += getattr(model, field)
-            
-                return aggregate
-            else:
-                raise NotImplementedError()
-            
         return result
     
     async def create(self, model: Model):

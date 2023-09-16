@@ -61,6 +61,14 @@ def create_application() -> Callable[[], Coroutine]:
                 'value': int,
                 'default': 5000
             }
+        ),
+        'user': (
+            ('--user', '-u'),
+            'user for single-user runtimes',
+            {
+                'value': str,
+                'default': 'default'
+            }
         )
     })
     

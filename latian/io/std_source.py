@@ -6,7 +6,7 @@ from typing import Callable, Any
 from threading import Thread
 from datetime import datetime, timedelta
 
-from ..model import Event
+from ..model import Event, Exercise
 from ..common import Exit
 from .io_source import IOSource, io_sources
 
@@ -80,7 +80,7 @@ class StandardIOSource(IOSource):
             while True:
                 prompt = '> '
                 if signal_only:
-                    prompt = str()
+                    prompt = 'press enter...'
                 elif failed_validate:
                     prompt = 'try again %s'%prompt
 
@@ -111,14 +111,26 @@ class StandardIOSource(IOSource):
         print(message)
 
     def write_event(self, event: Event, prefix: str = None):
-        base = '%s%s'%(event.exercise, ' '*(40 - len(event.exercise)))
+        message = '%s%s'%(
+            event.exercise,
+            ' '*(40 - len(event.exercise))
+        )
         if prefix:
-            base = '%s %s'%(prefix, base)
+            message = '%s %s'%(prefix, message)
 
         if event.is_rep:
-            self.write_message('%sx%d'%(base, event.value))
+            message = '%sx%d'%(message, event.value)
         else:
-            self.write_message('%s%s'%(base, _format_duration(event.value)))
+            message = '%s%s'%(message, _format_duration(event.value))
+
+        self.write_message(message)
+
+    def write_exercise(self, exercise: Exercise, prefix: str):
+        message = '%s (%s)'%(exercise.name, exercise.type)
+        if prefix:
+            message = '%s %s'%(prefix, message)
+
+        self.write_message(message)
 
     def write_timer(self, delay_seconds: int) -> Callable:
         timer_thread = TimerThread(delay_seconds)

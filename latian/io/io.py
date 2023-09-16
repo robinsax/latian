@@ -1,10 +1,9 @@
 '''
 The user I/O provider for application logic.
 '''
-from typing import Callable
+from typing import Callable, ContextManager
 
-from ..model import Event
-from ..common import Exit
+from ..model import Event, Exercise
 from .io_source import IOSource
 
 class MessageUnwriteContext:
@@ -62,11 +61,14 @@ class IO:
     def write_event(self, event: Event, prefix: str = None):
         self._source.write_event(event, prefix)
 
+    def write_exercise(self, exercise: Exercise, prefix: str = None):
+        self._source.write_exercise(exercise, prefix)
+
     def unwrite_messages(self, count: int):
         self._source.unwrite_messages(count)
 
     # Output contexts.
-    def temporary_messages(self, count: int) -> MessageUnwriteContext:
+    def temporary_messages(self, count: int) -> ContextManager:
         return MessageUnwriteContext(self, count)
     
     def temporary_message(
@@ -75,7 +77,7 @@ class IO:
         self.write_message(string, *formats)
         return self.temporary_messages(1)
     
-    def timer(self, delay_seconds: int) -> TimerUnwriteContext:
+    def timer(self, delay_seconds: int) -> ContextManager:
         return TimerUnwriteContext(
             self._source.write_timer(delay_seconds)
         )

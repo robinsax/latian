@@ -11,6 +11,8 @@ from aiohttp import web
 from asyncio import Queue
 from typing import Callable, Any
 
+from latian.model import Exercise
+
 from ..cli import CLIArgs
 from ..model import Event
 from ..common import Exit
@@ -58,7 +60,6 @@ class WebSocketIOServer:
         closed = False
 
         await self.socket_queue.put((rxq, txq))
-        print('client available')
 
         async def send():
             nonlocal closed
@@ -121,7 +122,6 @@ class WebSocketIOSource(IOSource):
         self.rxq, self.txq = (
             await WebSocketIOServer.next_socket(self.args)
         )
-        print('io source bound')
 
     async def unbind(self):
         pass
@@ -185,6 +185,13 @@ class WebSocketIOSource(IOSource):
             'type': event.type,
             'exercise': event.exercise,
             'value': event.value
+        })
+
+    def write_exercise(self, exercise: Exercise, prefix: str):
+        self._push_out('exercise', {
+            'prefix': prefix,
+            'name': exercise.name,
+            'type': exercise.type
         })
 
     def unwrite_messages(self, count: int):

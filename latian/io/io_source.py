@@ -4,7 +4,7 @@ Abstract base and implementation registry of I/O sources.
 from typing import Callable, Type, Any
 
 from ..cli import CLIArgs
-from ..model import Event
+from ..model import Event, Exercise
 from ..common import Implementations
 
 class IOSource:
@@ -35,6 +35,9 @@ class IOSource:
         raise NotImplementedError()
     
     def write_event(self, event: Event, prefix: str):
+        raise NotImplementedError()
+
+    def write_exercise(self, exercise: Exercise, prefix: str):
         raise NotImplementedError()
 
     def unwrite_messages(self, count: int):

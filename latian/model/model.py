@@ -1,7 +1,8 @@
 '''
 Abstract base for data models.
 '''
-from dataclasses import asdict, fields
+from dataclasses import fields
+from types import GenericAlias
 
 class Model:
 
@@ -14,6 +15,12 @@ class Model:
         attributes = fields(cls)
         schema = dict()
         for attribute in attributes:
+            if isinstance(attribute.type, GenericAlias):
+                schema[attribute.name] = (
+                    list((attribute.type.__args__[0],))
+                )
+                continue
+
             schema[attribute.name] = attribute.type
 
         return schema

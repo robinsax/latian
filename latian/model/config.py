@@ -21,7 +21,7 @@ def create_default_config():
     return Config(
         exit_message='cya',
         milestone_reps=100,
-        milestone_seconds=18000,
+        milestone_seconds=300,
         timer_delay_seconds=5,
         loaded=False
     )

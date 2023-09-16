@@ -3,16 +3,13 @@ Abstract base and implementation registry of storage backends.
 
 Storage backends connect in the context of a user.
 '''
-from enum import Enum
-from typing import TypeVar, Union, Type, Any
+from typing import TypeVar, Type, Any
 
 from ..cli import CLIArgs
 from ..model import Model
 from ..common import Implementations
 
-class Aggregation(Enum):
-    sum = 'sum'
-
+# TODO: Update support.
 T = TypeVar('T')
 class StorageBackend:
     schema: dict[str, Type[Model]]
@@ -37,9 +34,8 @@ class StorageBackend:
     async def query(
         self,
         Target: Type[T],
-        filter: dict[str, Any] = None,
-        aggregation: tuple[Aggregation, str] = None
-    ) -> Union[list[T], int]:
+        filter: dict[str, Any] = None
+    ) -> list[T]:
         raise NotImplementedError()
 
     async def create(self, model: Model):

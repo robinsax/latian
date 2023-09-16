@@ -13,4 +13,7 @@ ActionFn = Callable[[DAL, IO], Coroutine]
 actions = Implementations[ActionFn]()
 
 # Load action implementations.
-from . import session, report, add_exercise, configure
+from . import (
+    free_session, planned_session, report, add_exercise,
+    add_session_plan, configure
+)

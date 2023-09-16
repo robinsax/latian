@@ -170,6 +170,7 @@
             const { useState, useMemo, useEffect, useRef } = preactHooks;
 
             const PORT = '$PORT';
+            const MESSAGE_TYPES = ['message', 'event', 'exercise'];
 
             const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -193,8 +194,20 @@
             const handleOutput = (currentOutputs, newOutput) => {
                 const lastK = currentOutputs.length - 1;
 
-                if (newOutput.data?.options?.includes('random')) {
+                // TODO: Better session state communication.
+                const sessionStart = (
+                    newOutput.data?.options?.includes('random') ||
+                    newOutput.data == 'next exercise'
+                );
+                if (sessionStart) {
                     document.body.className = 'in-session';
+                }
+
+                const sessionEnd = (
+                    newOutput.data?.message == 'done session plan'
+                );
+                if (sessionEnd) {
+                    document.body.className = '';
                 }
 
                 switch (newOutput.type) {
@@ -220,12 +233,12 @@
                     case 'unwrite_messages':
                         let removed = 0;
                         return currentOutputs.reverse().filter(check => {
-                            if (removed >= check.data) return true;
-                            if (!['message', 'event'].includes(check.type)) return true;
+                            if (removed >= newOutput.data) return true;
+                            if (!MESSAGE_TYPES.includes(check.type)) return true;
 
                             removed++;
                             return false;
-                        });
+                        }).reverse();
                     default:
                         return [...currentOutputs, newOutput]
                 }
@@ -320,6 +333,13 @@
                         ))
                     ])
                 ),
+                exercise: ({ data: { type, name, prefix }}) => (
+                    h('div', { class: 'message' }, [
+                        prefix && h('div', { class: 'secondary width-a' }, prefix),
+                        h('div', { class: 'width-b' }, name),
+                        h('div', { class: 'secondary width-a' }, type)
+                    ])
+                ),
                 default: ({ type, data }) => (
                     h('div', { class: 'unknown' }, JSON.stringify({ type, data }))
                 )
@@ -329,6 +349,7 @@
                 const [output, setOutput] = useState([]);
                 const rawOutput = useRef([]);
                 const socket = useRef(null);
+                window.w = rawOutput;
 
                 const sendInput = async input => {
                     while (!socket.current) await sleep(0.1);
