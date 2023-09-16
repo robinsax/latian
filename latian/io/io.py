@@ -3,26 +3,62 @@ The user I/O provider for application logic.
 '''
 from typing import Callable, ContextManager
 
+from latian.model import Event, Exercise
+
 from ..model import Event, Exercise
 from .io_source import IOSource
 
-class MessageUnwriteContext:
-    '''Context manager that causes message remove when it ends.'''
-    io: 'IO'
+class IOWriter:
+    _source: IOSource
+
+    def __init__(self, source: IOSource):
+        self._source = source
+
+    def write_message(self, message: str, *formats: list):
+        if formats:
+            message = message%formats
+        self._source.write_message(message)
+
+    def write_event(self, event: Event, prefix: str = None):
+        self._source.write_event(event, prefix)
+
+    def write_exercise(self, exercise: Exercise, prefix: str = None):
+        self._source.write_exercise(exercise, prefix)
+
+class TempIOWriterContext(IOWriter):
+    '''
+    Context manager for writing messages that unwrite after the block
+    ends.
+    '''
     count: int
 
-    def __init__(self, io: 'IO', count: int):
-        self.io = io
-        self.count = count
+    def __init__(self, source: IOSource):
+        super().__init__(source)
+        self.count = 0
 
-    def __enter__(self):
+    def __enter__(self) -> IOWriter:
         return self
     
     def __exit__(self, ExType, exc_value, exc_traceback):
         if ExType:
             raise ExType(exc_value).with_traceback(exc_traceback)
 
-        self.io.unwrite_messages(self.count)        
+        self._source.unwrite_messages(self.count)
+
+    def write_message(self, message: str, *formats: list):
+        self.count += 1
+
+        return super().write_message(message, *formats)
+    
+    def write_event(self, event: Event, prefix: str = None):
+        self.count += 1
+
+        return super().write_event(event, prefix)
+    
+    def write_exercise(self, exercise: Exercise, prefix: str = None):
+        self.count += 1
+
+        return super().write_exercise(exercise, prefix)
 
 class TimerUnwriteContext:
     '''Context manager that removes a timer when it ends.'''
@@ -40,11 +76,7 @@ class TimerUnwriteContext:
         if ExType:
             raise ExType(exc_value).with_traceback(exc_traceback)
 
-class IO:
-    _source: IOSource
-
-    def __init__(self, source: IOSource):
-        self._source = source
+class IO(IOWriter):
 
     async def bind(self):
         await self._source.bind()
@@ -52,37 +84,14 @@ class IO:
     async def unbind(self):
         await self._source.unbind()
 
-    # Output.
-    def write_message(self, message: str, *formats: list):
-        if formats:
-            message = message%formats
-        self._source.write_message(message)
+    def temporary(self) -> ContextManager[IOWriter]:
+        return TempIOWriterContext(self._source)
 
-    def write_event(self, event: Event, prefix: str = None):
-        self._source.write_event(event, prefix)
-
-    def write_exercise(self, exercise: Exercise, prefix: str = None):
-        self._source.write_exercise(exercise, prefix)
-
-    def unwrite_messages(self, count: int):
-        self._source.unwrite_messages(count)
-
-    # Output contexts.
-    def temporary_messages(self, count: int) -> ContextManager:
-        return MessageUnwriteContext(self, count)
-    
-    def temporary_message(
-        self, string: str, *formats: list
-    ) -> MessageUnwriteContext:
-        self.write_message(string, *formats)
-        return self.temporary_messages(1)
-    
     def timer(self, delay_seconds: int) -> ContextManager:
         return TimerUnwriteContext(
             self._source.write_timer(delay_seconds)
         )
     
-    # Input.
     async def read_signal(self, message: str = None):
         await self._source.read_input(
             message=message,
@@ -121,3 +130,8 @@ class IO:
             message=message,
             options=options
         )
+
+    async def read_confirm(self, message: str = None) -> bool:
+        confirm = await self.read_choice(('yes', 'no'), message)
+
+        return confirm == 'yes'

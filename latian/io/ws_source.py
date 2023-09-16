@@ -156,7 +156,6 @@ class WebSocketIOSource(IOSource):
         while True:
             value = await self.rxq.get()
             if value == CLOSE_SIGNAL:
-                print('client disconnect')
                 raise Exit()
             if validator_fn:
                 try:

@@ -1,7 +1,7 @@
 from ..io import IO
 from ..dal import DAL
 from ..model import EXERCISE_TYPES, SessionPlan
-from .common import temporary_show_session_plan, run_exercise
+from .common import run_exercise
 from . import actions
 
 @actions.implementation('start planned session')
@@ -24,19 +24,22 @@ async def planned_session_action(dal: DAL, io: IO):
             return
         
         plan = plans[plan_names.index(plan_name)]
-        with temporary_show_session_plan(io, plan):
-            confirm = await io.read_choice(('yes', 'no'), 'this?')
-            if confirm == 'yes':
+        with io.temporary() as tmp_io:
+            tmp_io.write_message(plan.name)
+            for exercise in plan.exercises:
+                tmp_io.write_exercise(exercise, prefix='-')
+
+            if await io.read_confirm('this?'):
                 break
 
-    for exercise in plan.exercises:
-        with io.temporary_messages(2):
-            io.write_message('next exercise')
-            io.write_exercise(exercise)
-            await io.read_signal()
+    with io.temporary() as session_io:
+        for exercise in plan.exercises:
+            with io.temporary() as exercise_io:
+                exercise_io.write_message('next exercise')
+                exercise_io.write_exercise(exercise)
 
-        await run_exercise(io, dal, config, exercise)
+                await io.read_signal()
 
-    io.unwrite_messages(len(plan.exercises))
+            await run_exercise(io, session_io, dal, config, exercise)
 
     await io.read_signal('done session plan')

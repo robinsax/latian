@@ -27,11 +27,14 @@ async def free_session_action(dal: DAL, io: IO):
 
         name: str = None
         if is_random:
-            name = exercises[randint(0, len(exercises) - 1)].name
+            exercise = exercises[randint(0, len(exercises) - 1)]
 
-            title = '%s (%s)'%(name, type)
-            if await io.read_choice(('yes', 'no'), title) == 'no':
-                continue
+            with io.temporary() as tmp_io:
+                tmp_io.write_exercise(exercise)
+                if not await io.read_confirm('this?'):
+                    continue
+
+            name = exercise.name
         else:
             names = list(
                 exercise.name for exercise in exercises
@@ -40,10 +43,8 @@ async def free_session_action(dal: DAL, io: IO):
             if name == 'back':
                 continue
 
-        await run_exercise(
-            io, dal, config,
-            Exercise(
-                type=type,
-                name=name
-            )
+        dummy_exercise = Exercise(
+            type=type,
+            name=name
         )
+        await run_exercise(io, io, dal, config, dummy_exercise)

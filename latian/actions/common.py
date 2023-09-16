@@ -1,21 +1,12 @@
 from datetime import datetime
-from typing import ContextManager
 
-from ..io import IO
+from ..io import IO, IOWriter
 from ..dal import DAL
-from ..model import SessionPlan, Exercise, Event, Config
-
-def temporary_show_session_plan(
-    io: IO, plan: SessionPlan
-) -> ContextManager:
-    io.write_message(plan.name)
-    for exercise in plan.exercises:
-        io.write_exercise(exercise, prefix='-')
-
-    return io.temporary_messages(len(plan.exercises) + 1)
+from ..model import Exercise, Event, Config
 
 async def run_exercise(
-    io: IO, dal: DAL, config: Config, exercise: Exercise
+    io: IO, io_writer: IOWriter, dal: DAL, config: Config,
+    exercise: Exercise
 ):
     event = Event(
         type=exercise.type,
@@ -44,9 +35,9 @@ async def run_exercise(
             type=exercise.type,
             value=totals[exercise.name] + event.value
         )
-        io.write_event(dummy_event, prefix='+')
-    else:
-        io.write_event(event, prefix='+')
+        io_writer.write_event(dummy_event, prefix='+')
+    
+    io_writer.write_event(event, prefix='+')
 
     await dal.create_event(event)
     await dal.commit()

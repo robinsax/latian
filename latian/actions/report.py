@@ -22,44 +22,38 @@ async def report_action(dal: DAL, io: IO):
     if report_type == 'log':
         events = await dal.get_events(**query_args)
 
-        last_date = date(year=2000, month=1, day=1)
-        to_write = list()
-        for event in events:
-            event_date = event.when.date()
-            if not last_date or last_date != event_date:
-                to_write.append(event_date.strftime('%d/%m/%Y'))
+        with io.temporary() as tmp_io:
+            tmp_io.write_message('- log -')
 
-            to_write.append(event)
-            last_date = event_date
+            last_date = date(year=2000, month=1, day=1)
+            for event in events:
+                event_date = event.when.date()
+                if last_date != event_date:
+                    tmp_io.write_message(
+                        event_date.strftime('%d/%m/%Y')
+                    )
 
-        with io.temporary_messages(len(to_write) + 1):
-            io.write_message('- log -')
-
-            for item in to_write:
-                if isinstance(item, str):
-                    io.write_message(item)
-                    continue
-
-                prefix = item.when.strftime('%H:%M')
-                io.write_event(item, prefix=prefix)
+                tmp_io.write_event(
+                    event,
+                    prefix=event.when.strftime('%H:%M')
+                )
+                last_date = event_date
 
             await io.read_signal()
     else:
-        totals_by_type = dict()
-        exercises_by_type = dict()
-        totals_count = 0
+        totals_by_type: dict[str, int]  = dict()
+        exercises_by_type: dict[str, list[Exercise]] = dict()
         for type in EXERCISE_TYPES:
             exercises_by_type[type] = await dal.get_exercises(type)
             totals_by_type[type] = await dal.compute_exercise_totals(
                 type, **query_args
             )
-            totals_count += len(totals_by_type[type])
 
-        with io.temporary_messages(totals_count + 3):
-            io.write_message('- totals -')
+        with io.temporary() as tmp_io:
+            tmp_io.write_message('- totals -')
             
             for type in EXERCISE_TYPES:
-                io.write_message(type)
+                tmp_io.write_message(type)
 
                 for exercise in exercises_by_type[type]:
                     dummy_event = Event(
@@ -67,6 +61,6 @@ async def report_action(dal: DAL, io: IO):
                         exercise=exercise.name,
                         value=totals_by_type[type][exercise.name]
                     )
-                    io.write_event(dummy_event)
+                    tmp_io.write_event(dummy_event)
 
             await io.read_signal()

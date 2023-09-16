@@ -5,7 +5,9 @@ from . import actions
 
 @actions.implementation('configure')
 async def configure_action(dal: DAL, io: IO):
-    with io.temporary_message('let\'s set things up'):
+    with io.temporary() as tmp_io:
+        tmp_io.write_message('let\'s set things up')
+
         config = Config(loaded=True)
         schema = Config.schema()
         for key in schema:
