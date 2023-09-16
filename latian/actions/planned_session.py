@@ -24,17 +24,17 @@ async def planned_session_action(dal: DAL, io: IO):
             return
         
         plan = plans[plan_names.index(plan_name)]
-        with io.temporary() as tmp_io:
-            tmp_io.write_message(plan.name)
+        with io.temporary_write() as temp_out:
+            temp_out.write_message(plan.name)
             for exercise in plan.exercises:
-                tmp_io.write_exercise(exercise, prefix='-')
+                temp_out.write_exercise(exercise, prefix='-')
 
             if await io.read_confirm('this?'):
                 break
 
-    with io.temporary() as session_io:
+    with io.temporary_write() as session_io:
         for exercise in plan.exercises:
-            with io.temporary() as exercise_io:
+            with io.temporary_write() as exercise_io:
                 exercise_io.write_message('next exercise')
                 exercise_io.write_exercise(exercise)
 

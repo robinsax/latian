@@ -84,7 +84,7 @@ class IO(IOWriter):
     async def unbind(self):
         await self._source.unbind()
 
-    def temporary(self) -> ContextManager[IOWriter]:
+    def temporary_write(self) -> ContextManager[IOWriter]:
         return TempIOWriterContext(self._source)
 
     def timer(self, delay_seconds: int) -> ContextManager:

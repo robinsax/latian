@@ -22,18 +22,18 @@ async def report_action(dal: DAL, io: IO):
     if report_type == 'log':
         events = await dal.get_events(**query_args)
 
-        with io.temporary() as tmp_io:
-            tmp_io.write_message('- log -')
+        with io.temporary_write() as temp_out:
+            temp_out.write_message('- log -')
 
             last_date = date(year=2000, month=1, day=1)
             for event in events:
                 event_date = event.when.date()
                 if last_date != event_date:
-                    tmp_io.write_message(
+                    temp_out.write_message(
                         event_date.strftime('%d/%m/%Y')
                     )
 
-                tmp_io.write_event(
+                temp_out.write_event(
                     event,
                     prefix=event.when.strftime('%H:%M')
                 )
@@ -49,11 +49,11 @@ async def report_action(dal: DAL, io: IO):
                 type, **query_args
             )
 
-        with io.temporary() as tmp_io:
-            tmp_io.write_message('- totals -')
+        with io.temporary_write() as temp_out:
+            temp_out.write_message('- totals -')
             
             for type in EXERCISE_TYPES:
-                tmp_io.write_message(type)
+                temp_out.write_message(type)
 
                 for exercise in exercises_by_type[type]:
                     dummy_event = Event(
@@ -61,6 +61,6 @@ async def report_action(dal: DAL, io: IO):
                         exercise=exercise.name,
                         value=totals_by_type[type][exercise.name]
                     )
-                    tmp_io.write_event(dummy_event)
+                    temp_out.write_event(dummy_event)
 
             await io.read_signal()

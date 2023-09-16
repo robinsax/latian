@@ -19,11 +19,11 @@ async def session_planner_action(dal: DAL, io: IO):
             exercise.name for exercise in exercises
         )
 
-    with io.temporary() as tmp_io:
-        tmp_io.write_message('- new session plan -')
+    with io.temporary_write() as temp_out:
+        temp_out.write_message('- new session plan -')
 
         plan_name = await io.read_string('name')
-        tmp_io.write_message(plan_name)
+        temp_out.write_message(plan_name)
 
         exercises = list()
         while True:
@@ -43,7 +43,7 @@ async def session_planner_action(dal: DAL, io: IO):
                 name=exercise_name
             )
             exercises.append(exercise)
-            tmp_io.write_exercise(exercise)
+            temp_out.write_exercise(exercise)
 
         await dal.create_session_plan(SessionPlan(
             name=plan_name,

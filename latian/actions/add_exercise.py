@@ -5,8 +5,8 @@ from . import actions
 
 @actions.implementation('add exercise')
 async def add_exercise_action(dal: DAL, io: IO):
-    with io.temporary() as tmp_io:
-        tmp_io.write_message('describe it')
+    with io.temporary_write() as temp_out:
+        temp_out.write_message('describe it')
 
         type = await io.read_choice(EXERCISE_TYPES, 'type')
         name = await io.read_string('name')

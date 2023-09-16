@@ -29,8 +29,8 @@ async def free_session_action(dal: DAL, io: IO):
         if is_random:
             exercise = exercises[randint(0, len(exercises) - 1)]
 
-            with io.temporary() as tmp_io:
-                tmp_io.write_exercise(exercise)
+            with io.temporary_write() as temp_out:
+                temp_out.write_exercise(exercise)
                 if not await io.read_confirm('this?'):
                     continue
 
