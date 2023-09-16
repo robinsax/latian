@@ -6,6 +6,7 @@ from typing import Callable, ContextManager
 from latian.model import Event, Exercise
 
 from ..model import Event, Exercise
+from ..common import Reset
 from .io_source import IOSource
 
 class IOWriter:
@@ -40,10 +41,10 @@ class TempIOWriterContext(IOWriter):
         return self
     
     def __exit__(self, ExType, exc_value, exc_traceback):
+        self._source.unwrite_messages(self.count)
+
         if ExType:
             raise ExType(exc_value).with_traceback(exc_traceback)
-
-        self._source.unwrite_messages(self.count)
 
     def write_message(self, message: str, *formats: list):
         self.count += 1
@@ -124,12 +125,31 @@ class IO(IOWriter):
         )
 
     async def read_choice(
-        self, options: list[str], message: str = None
+        self, options: list[str], message: str = None, *,
+        control_options: list[str] = None,
+        with_cancel: bool = False
     ) -> str:
-        return await self._source.read_input(
+        if not control_options:
+            control_options = list()
+        if with_cancel:
+            control_options = (*control_options, 'cancel')
+        
+        options = list(options)
+        control_lookup = dict()
+        for option in control_options:
+            escaped_option = '<%s>'%option
+            control_lookup[escaped_option] = option
+            options.append(escaped_option)
+
+        result = await self._source.read_input(
             message=message,
             options=options
         )
+
+        if with_cancel and result == '<cancel>':
+            raise Reset()
+        
+        return control_lookup.get(result, result)
 
     async def read_confirm(self, message: str = None) -> bool:
         confirm = await self.read_choice(('yes', 'no'), message)

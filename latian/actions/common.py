@@ -28,12 +28,12 @@ async def run_exercise(
     if event.value <= 0:
         return
 
-    totals = await dal.compute_exercise_totals(exercise.type)
-    if event.is_milestone(totals[exercise.name], config):
+    total = await dal.get_exercise_total(exercise)
+    if event.is_milestone(total, config):
         dummy_event = Event(
             exercise='milestone %s!'%exercise.name,
             type=exercise.type,
-            value=totals[exercise.name] + event.value
+            value=total + event.value
         )
         io_writer.write_event(dummy_event, prefix='+')
     

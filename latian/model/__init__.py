@@ -5,7 +5,7 @@ from typing import Type
 
 from .model import Model
 from .event import Event
-from .config import Config, create_default_config
+from .config import CONFIG_TITLES, Config, create_default_config
 from .session_plan import SessionPlan
 from .exercise import EXERCISE_TYPES, Exercise, create_default_exercises
 

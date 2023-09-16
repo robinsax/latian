@@ -15,5 +15,5 @@ actions = Implementations[ActionFn]()
 # Load action implementations.
 from . import (
     free_session, planned_session, report, add_exercise,
-    add_session_plan, configure
+    session_planner, configure
 )

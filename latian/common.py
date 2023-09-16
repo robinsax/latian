@@ -4,6 +4,10 @@ class Exit(BaseException):
     '''Exception indicating graceful exit.'''
     pass
 
+class Reset(BaseException):
+    '''Exception indicating graceful abort of action.'''
+    pass
+
 T = TypeVar('T')
 class Implementations(Generic[T]):
     '''Registry for named implementations of an interface.'''

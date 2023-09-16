@@ -51,6 +51,26 @@ class DAL:
     async def get_session_plans(self) -> list[SessionPlan]:
         return await self._backend.query(SessionPlan)
 
+    async def get_exercise_total(
+        self, exercise: Exercise, day: date = None
+    ):
+        events = await self._backend.query(
+            Event,
+            filter={
+                'type': exercise.type,
+                'exercise': exercise.name
+            }
+        )
+        total = 0
+        for event in events:
+            # TODO: Use query filter.
+            if day and event.when.date() != day:
+                continue
+
+            total += event.value
+
+        return total
+
     # Mutations.
     async def create_event(self, event: Event):
         await self._backend.create(event)
@@ -70,31 +90,3 @@ class DAL:
     async def set_config(self, config: Config):
         await self._backend.delete(Config)
         await self._backend.create(config)
-
-    # Computations.
-    async def compute_exercise_totals(
-        self, type: str, day: date = None
-    ):
-        exercises = await self.get_exercises(type)
-        
-        totals = dict()
-        for exercise in exercises:
-            events = await self._backend.query(
-                Event,
-                filter={
-                    'type': type,
-                    'exercise': exercise.name
-                }
-            )
-
-            total = 0
-            for event in events:
-                # TODO: Use query filter.
-                if day and event.when.date() != day:
-                    continue
-
-                total += event.value
-
-            totals[exercise.name] = total
-
-        return totals

@@ -18,10 +18,8 @@ async def planned_session_action(dal: DAL, io: IO):
 
     while True:
         plan_name = await io.read_choice(
-            (*plan_names, 'cancel'), 'which'
+            plan_names, 'which', with_cancel=True
         )
-        if plan_name == 'cancel':
-            return
         
         plan = plans[plan_names.index(plan_name)]
         with io.temporary_write() as temp_out:
@@ -42,4 +40,4 @@ async def planned_session_action(dal: DAL, io: IO):
 
             await run_exercise(io, session_io, dal, config, exercise)
 
-    await io.read_signal('done session plan')
+        await io.read_signal('done session plan')

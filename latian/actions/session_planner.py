@@ -3,10 +3,7 @@ from ..dal import DAL
 from ..model import EXERCISE_TYPES, Exercise, SessionPlan
 from . import actions
 
-# TODO: Updates.
-
-@actions.implementation('session planner')
-async def session_planner_action(dal: DAL, io: IO):
+async def _run_add(dal: DAL, io: IO):
     exercise_names_by_type = dict()
     allowed_types = list()
     for type in EXERCISE_TYPES:
@@ -28,10 +25,12 @@ async def session_planner_action(dal: DAL, io: IO):
         exercises = list()
         while True:
             type = await io.read_choice(
-                (*allowed_types, 'done'), 'exercise type'
+                allowed_types, 'exercise type',
+                control_options=('done',), with_cancel=True
             )
             if type == 'done':
                 break
+
             exercise_name = await io.read_choice(
                 (*exercise_names_by_type[type], 'back'), 'which'
             )
@@ -51,3 +50,20 @@ async def session_planner_action(dal: DAL, io: IO):
         ))
 
     await dal.commit()
+
+async def _run_delete(dal: DAL, io: IO):
+    pass
+
+@actions.implementation('session planner')
+async def session_planner_action(dal: DAL, io: IO):
+    mode = await io.read_choice(
+        ('create new', 'delete'), 'do what',
+        control_options=('cancel',)
+    )
+    if mode == 'cancel':
+        return
+
+    if mode == 'create new':
+        await _run_add(dal, io)
+    else:
+        await _run_delete(dal, io)

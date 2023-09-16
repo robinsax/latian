@@ -10,10 +10,10 @@ async def report_action(dal: DAL, io: IO):
     last_when = datetime(year=2000, month=1, day=1)
 
     report_type = await io.read_choice(
-        ('log', 'totals'), 'report type'
+        ('log', 'totals'), 'report type', with_cancel=True
     )
     report_span = await io.read_choice(
-        ('daily', 'all time'), 'timespan'
+        ('daily', 'all time'), 'timespan', with_cancel=True
     )
     query_args = dict()
     if report_span == 'daily':
@@ -41,13 +41,9 @@ async def report_action(dal: DAL, io: IO):
 
             await io.read_signal()
     else:
-        totals_by_type: dict[str, int]  = dict()
         exercises_by_type: dict[str, list[Exercise]] = dict()
         for type in EXERCISE_TYPES:
             exercises_by_type[type] = await dal.get_exercises(type)
-            totals_by_type[type] = await dal.compute_exercise_totals(
-                type, **query_args
-            )
 
         with io.temporary_write() as temp_out:
             temp_out.write_message('- totals -')
@@ -56,10 +52,13 @@ async def report_action(dal: DAL, io: IO):
                 temp_out.write_message(type)
 
                 for exercise in exercises_by_type[type]:
+                    total = await dal.get_exercise_total(
+                        exercise, **query_args
+                    )
                     dummy_event = Event(
                         type=type,
                         exercise=exercise.name,
-                        value=totals_by_type[type][exercise.name]
+                        value=total
                     )
                     temp_out.write_event(dummy_event)
 

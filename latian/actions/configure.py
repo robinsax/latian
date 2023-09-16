@@ -1,12 +1,12 @@
 from ..io import IO
 from ..dal import DAL
-from ..model import Config
+from ..model import CONFIG_TITLES, Config
 from . import actions
 
 @actions.implementation('configure')
 async def configure_action(dal: DAL, io: IO):
     with io.temporary_write() as temp_out:
-        temp_out.write_message('let\'s set things up')
+        temp_out.write_message('- configuration -')
 
         config = Config(loaded=True)
         schema = Config.schema()
@@ -15,7 +15,7 @@ async def configure_action(dal: DAL, io: IO):
                 continue
 
             type = schema[key]
-            title = ' '.join(key.split('_'))
+            title = CONFIG_TITLES[key]
 
             value = None
             if type is str:
