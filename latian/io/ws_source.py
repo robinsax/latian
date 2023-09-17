@@ -18,11 +18,12 @@ from ..model import Event
 from ..common import Exit
 from .io_source import IOSource, io_sources
 
-FRONTEND_ASSET = 'latian/io/ws_source.html'
+ASSET_PATH_FORMAT = 'latian/io/ws_source.%s'
 CLOSE_SIGNAL = '<<close>>'
 
-def _load_index() -> str:
-    with io.open(FRONTEND_ASSET, encoding='utf-8') as asset_io:
+def _load_asset(extension) -> str:
+    path = ASSET_PATH_FORMAT%extension
+    with io.open(path, encoding='utf-8') as asset_io:
        return asset_io.read()
 
 class WebSocketIOServer:
@@ -45,13 +46,19 @@ class WebSocketIOServer:
         self.socket_queue = Queue()
         self.port = self.args.get('port')
 
-    async def index(self, req: web.Request):
+    async def get_index(self, req: web.Request):
         return web.Response(
-            text=_load_index().replace('$PORT', str(self.port)),
+            text=_load_asset('html'),
             content_type='text/html'
         )
     
-    async def socket(self, req: web.Request):
+    async def get_js(self, req: web.Request):
+        return web.Response(
+            text=_load_asset('js').replace('$PORT', str(self.port)),
+            content_type='application/javascript'
+        )
+
+    async def handle_socket(self, req: web.Request):
         socket = web.WebSocketResponse()
         await socket.prepare(req)
 
@@ -97,8 +104,9 @@ class WebSocketIOServer:
     async def start(self):        
         server = web.Application()
         server.add_routes((
-            web.get('/', lambda req: self.index(req)),
-            web.get('/ws', lambda req: self.socket(req))
+            web.get('/', lambda req: self.get_index(req)),
+            web.get('/index.js', lambda req: self.get_js(req)),
+            web.get('/ws', lambda req: self.handle_socket(req))
         ))
         
         runner = web.AppRunner(server)
@@ -126,7 +134,7 @@ class WebSocketIOSource(IOSource):
     async def unbind(self):
         pass
 
-    def _push_out(self, data_type: str, data: dict = None):
+    def queue_write(self, data_type: str, data: dict = None):
         self.txq.put_nowait({
             'type': data_type,
             'data': data
@@ -146,7 +154,7 @@ class WebSocketIOSource(IOSource):
                 return value
             validator_fn = validate
 
-        self._push_out('input', {
+        self.queue_write('input', {
             'message': message,
             'signal_only': signal_only,
             'options': options
@@ -161,25 +169,25 @@ class WebSocketIOSource(IOSource):
                 try:
                     value = validator_fn(value)
                 except ValueError:
-                    self._push_out('input_invalid')
+                    self.queue_write('input_invalid')
                     continue
             break
 
-        self._push_out('input_ok')
+        self.queue_write('input_ok')
         return value
 
     def write_message(self, message: str):
-        self._push_out('message', message)
+        self.queue_write('message', message)
     
     def write_timer(self, delay_seconds: int) -> Callable:
-        self._push_out('timer', delay_seconds)
+        self.queue_write('timer', delay_seconds)
 
         def stop():
-            self._push_out('unwrite_timer')
+            self.queue_write('unwrite_timer')
         return stop
     
     def write_event(self, event: Event, prefix: str):
-        self._push_out('event', {
+        self.queue_write('event', {
             'prefix': prefix,
             'type': event.type,
             'exercise': event.exercise,
@@ -187,11 +195,11 @@ class WebSocketIOSource(IOSource):
         })
 
     def write_exercise(self, exercise: Exercise, prefix: str):
-        self._push_out('exercise', {
+        self.queue_write('exercise', {
             'prefix': prefix,
             'name': exercise.name,
             'type': exercise.type
         })
 
     def unwrite_messages(self, count: int):
-        self._push_out('unwrite_messages', count)
+        self.queue_write('unwrite_messages', count)

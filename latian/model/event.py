@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from .model import Model
 from .config import Config
+from .exercise import Exercise
 
 @dataclass
 class Event(Model):
@@ -21,6 +22,12 @@ class Event(Model):
     @property
     def is_rep(self):
         return self.type == 'rep'
+    
+    def is_exercise(self, exercise: Exercise) -> bool:
+        return (
+            exercise.name == self.exercise and \
+            self.type == exercise.type
+        )
 
     def is_milestone(self, prev_total: int, config: Config) -> bool:
         milestone = 0

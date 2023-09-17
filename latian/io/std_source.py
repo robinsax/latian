@@ -12,9 +12,26 @@ from ..common import Exit
 from .io_source import IOSource, io_sources
 
 def _format_duration(seconds: int):
-    if seconds < 0:
-        return '%ds'%seconds
-    return '%dm%ds'%(int(seconds/60), seconds%60)
+    negative = seconds < 0
+    if negative:
+        seconds *= -1
+
+    format = '%dm%ds'%(int(seconds/60), seconds%60)
+    if negative:
+        format = '-%s'%format
+    
+    return format
+
+def _format_reps(count: int):
+    negative = count < 0
+    if negative:
+        count *= -1
+    
+    format = 'x%d'%count
+    if negative:
+        format = '-%s'%format
+
+    return format
 
 class TimerThread(Thread):
     '''Thread that writes an updating timer to stdout.'''
@@ -93,8 +110,7 @@ class StandardIOSource(IOSource):
                 try:
                     value = input(prompt)
                 except (KeyboardInterrupt, EOFError):
-                    if not signal_only:
-                        print()
+                    print()
                     raise Exit()
                 finally:
                     self.unwrite_messages(1)
@@ -123,12 +139,17 @@ class StandardIOSource(IOSource):
         if prefix:
             message = '%s %s'%(prefix, message)
 
+        value_format = str()
         if event.is_rep:
-            message = '%sx%d'%(message, event.value)
+            value_format = _format_reps(event.value)
         else:
-            message = '%s%s'%(message, _format_duration(event.value))
+            value_format = _format_duration(event.value)
 
-        self.write_message(message)
+        # TODO: Better communication.
+        if prefix == '+/-' and value_format[0] != '-':
+            value_format = '+%s'%value_format
+
+        self.write_message('%s%s'%(message, value_format))
 
     def write_exercise(self, exercise: Exercise, prefix: str):
         message = '%s (%s)'%(exercise.name, exercise.type)

@@ -28,7 +28,7 @@ async def free_session_action(dal: DAL, io: IO):
 
             is_random = type == 'random'
             if is_random:
-                index = randint(0, len(EXERCISE_TYPES))
+                index = randint(0, len(EXERCISE_TYPES) - 1)
                 type = EXERCISE_TYPES[index]
 
             exercises = await dal.get_exercises(type)

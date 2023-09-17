@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-    <!-- Frontend for the WebSocket I/O source. -->
+    <!-- Frontend markup for the WebSocket I/O source. -->
     <head>
         <title>latian</title>
 
@@ -20,7 +20,7 @@
             }
 
             body.connection-error {
-                background-color: rgb(142, 36, 36);
+                background-color: rgb(193, 48, 48);
             }
 
             button,
@@ -95,7 +95,7 @@
             }
 
             .input.invalid input {
-                background-color: rgb(142, 36, 36);
+                background-color: rgb(193, 48, 48);
             }
 
             .input-label {
@@ -158,6 +158,14 @@
                 font-size: 130px;
                 text-align: center;
             }
+
+            .difference-minus .width-b:last-child {
+                color: rgb(193, 48, 48);
+            }
+            
+            .difference-plus .width-b:last-child {
+                color: rgb(86, 205, 86);
+            }
         </style>
     </head>
     <body>
@@ -169,247 +177,6 @@
             window.exports = window.preactHooks = {};
         </script>
         <script src="https://cdn.jsdelivr.net/npm/preact@10.11.2/hooks/dist/hooks.js"></script>
-        <script>{
-            const { Fragment, render, h } = preact;
-            const { useState, useMemo, useEffect, useRef } = preactHooks;
-
-            const PORT = '$PORT';
-            const MESSAGE_TYPES = ['message', 'event', 'exercise'];
-
-            const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-            const makeClass = set => set.filter(check => check).join(' ');
-
-            const checkControlOption = option => {
-                const lastK = option.length - 1;
-                if (option[0] == '<' && option[lastK] == '>') {
-                    return option.substring(1, lastK);
-                }
-
-                return null;
-            };
-
-            const formatDuration = seconds => {
-                const negative = seconds < 0;
-                if (negative) seconds *= -1;
-
-                let format = (seconds % 60) + 's';
-                if (seconds >= 60) {
-                    format = Math.floor(seconds / 60) + 'm' + format;
-                }
-                if (negative) {
-                    format = '-' + format;
-                }
-
-                return format;
-            };
-
-            const handleOutput = (currentOutputs, newOutput) => {
-                const lastK = currentOutputs.length - 1;
-
-                // TODO: Better session state communication.
-                const sessionStart = (
-                    newOutput.data?.options?.includes('random') ||
-                    newOutput.data == 'next exercise'
-                );
-                if (sessionStart) {
-                    document.body.className = 'in-session';
-                }
-
-                const sessionEnd = (
-                    newOutput.data?.message == 'what do you want to do'
-                );
-                if (sessionEnd) {
-                    document.body.className = '';
-                }
-
-                switch (newOutput.type) {
-                    case 'input_invalid':
-                        return [
-                            ...currentOutputs.slice(0, lastK),
-                            { 
-                                ...currentOutputs[lastK],
-                                data: {
-                                    ...currentOutputs[lastK].data,
-                                    invalid: true
-                                }
-                            }
-                        ];
-                    case 'input_ok':
-                        return [
-                            ...currentOutputs.slice(0, lastK)
-                        ];
-                    case 'unwrite_timer':
-                        return currentOutputs.filter(check => (
-                            check.type != 'timer'
-                        ));
-                    case 'unwrite_messages':
-                        let removed = 0;
-                        return currentOutputs.reverse().filter(check => {
-                            if (removed >= newOutput.data) return true;
-                            if (!MESSAGE_TYPES.includes(check.type)) return true;
-
-                            removed++;
-                            return false;
-                        }).reverse();
-                    default:
-                        return [...currentOutputs, newOutput]
-                }
-            };
-
-            const components = {
-                message: ({ data: message }) => (
-                    h('div', {
-                        class: makeClass([
-                            'message',
-                            message.startsWith('-') &&
-                            message.endsWith('-') &&
-                            'heading'
-                        ])
-                    }, (
-                        message.replace(/\s-+|-+\s/g, '')
-                    ))
-                ),
-                input: ({
-                    data: { options, signal_only, message, invalid },
-                    sendInput
-                }) => (
-                    h('div', {
-                        class: makeClass([
-                            'input',
-                            invalid && 'invalid',
-                            signal_only && 'signal-only'
-                        ])
-                    }, [
-                        h('div', { class: 'input-label' }, message),
-                        signal_only ?
-                            h('button', {
-                                class: 'input-field',
-                                onClick: () => sendInput('signal')
-                            }, (
-                                '✔️'
-                            ))
-                        : options ?
-                            h('div', {
-                                class: 'options input-field'
-                            }, (
-                                options.map(option => (control => (
-                                    h('button', {
-                                        key: option,
-                                        class: makeClass([
-                                            control && 'control'
-                                        ]),
-                                        onClick: () => sendInput(option)
-                                    }, (
-                                        control || option
-                                    ))
-                                ))(checkControlOption(option)))
-                            ))
-                        :
-                            h('input', {
-                                class: 'input-field',
-                                ref: el => el && el.focus(),
-                                onKeyUp: event => {
-                                    if (event.which != 13) return;
-                                    
-                                    sendInput(event.target.value);
-                                }
-                            })
-                    ])
-                ),
-                timer: ({ data: delay }) => {
-                    const [time, setTime] = useState(-delay);
-
-                    useEffect(() => {
-                        const start = Date.now() + (delay * 1000);
-                        const key = setInterval(() => {
-                            const now = Date.now();
-
-                            setTime(Math.floor((now - start) / 1000));
-                        }, 100);
-                    }, []);
-
-                    return h('dev', { class: 'timer' }, formatDuration(time));
-                },
-                event: ({ data: { type, exercise, value, prefix } }) => (
-                    h('div', {
-                        class: makeClass([
-                            'message',
-                            exercise.startsWith('milestone') && 'milestone'
-                        ])
-                    }, [
-                        prefix && h('div', { class: 'secondary width-a' }, prefix),
-                        h('div', { class: 'width-b' }, exercise),
-                        h('div', { class: 'secondary width-a' }, type),
-                        h('div', { class: 'width-b' }, (
-                            type == 'rep' ?
-                                'x' + value
-                            :
-                                formatDuration(value)
-                        ))
-                    ])
-                ),
-                exercise: ({ data: { type, name, prefix }}) => (
-                    h('div', { class: 'message' }, [
-                        prefix && h('div', { class: 'secondary width-a' }, prefix),
-                        h('div', { class: 'width-b' }, name),
-                        h('div', { class: 'secondary width-a' }, type)
-                    ])
-                ),
-                default: ({ type, data }) => (
-                    h('div', { class: 'unknown' }, JSON.stringify({ type, data }))
-                )
-            }
-
-            const Root = () => {
-                const [output, setOutput] = useState([]);
-                const rawOutput = useRef([]);
-                const socket = useRef(null);
-                window.w = rawOutput;
-
-                const sendInput = async input => {
-                    while (!socket.current) await sleep(0.1);
-
-                    socket.current.send(JSON.stringify({ input }));
-                };
-
-                useEffect(async () => {
-                    socket.current = new WebSocket('ws://localhost:' + PORT + '/ws');
-                    socket.current.addEventListener('message', event => {
-                        rawOutput.current = handleOutput(rawOutput.current, JSON.parse(event.data));
-                        setOutput(rawOutput.current);
-                    });
-
-                    const handleError = () => {
-                        document.body.className = 'connection-error';
-                        document.body.innerHTML = '<div class="output error-message">error</div>';
-                    };
-                    socket.current.addEventListener('error', handleError);
-                    socket.current.addEventListener('close', handleError);
-                }, []);
-
-                return h(Fragment, null, [
-                    h('div', { class: 'log' }, (
-                        output.filter(({ type, data }) => (
-                            type == 'event' && data.prefix == '+'
-                        )).reverse().map((event, k) => (
-                            h(components.event, {
-                                key: k, ...event
-                            })
-                        ))
-                    )),
-                    h('div', { class: 'output' }, (
-                        output.map(({ type, data }, k) => (
-                            (type != 'event' || data.prefix != '+') &&
-                            h(components[type] || components.default, {
-                                key: k, type, data, sendInput
-                            })
-                        ))
-                    ))
-                ]);
-            };
-
-            render(h(Root), document.querySelector('#root'));
-        }</script>
+        <script src="/index.js"></script>
     </body>
 </html>
