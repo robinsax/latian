@@ -5,8 +5,10 @@ from ..dal import DAL
 from ..model import EXERCISE_TYPES, Exercise, Event
 from . import actions
 
-async def _report_log(dal: DAL, out: IOWriter, query_args: dict):
-    events = await dal.get_events(**query_args)
+async def _report_log(
+    dal: DAL, out: IOWriter, base_day: date = None
+):
+    events = await dal.get_events(day=base_day)
 
     out.write_message('- log -')
 
@@ -24,15 +26,19 @@ async def _report_log(dal: DAL, out: IOWriter, query_args: dict):
         )
         last_date = event_date
 
-async def _report_totals(dal: DAL, out: IOWriter, query_args: dict):
+async def _report_totals(
+    dal: DAL, out: IOWriter, base_day: date = None
+):
     out.write_message('- totals -')
-    
+    if base_day:
+        out.write_message(base_day.strftime('%d/%m/%Y'))
+
     for type in EXERCISE_TYPES:
         exercises = await dal.get_exercises(type)
 
         for exercise in exercises:
             total = await dal.get_exercise_total(
-                exercise, **query_args
+                exercise, day=base_day
             )
             dummy_event = Event(
                 type=type,
@@ -41,11 +47,12 @@ async def _report_totals(dal: DAL, out: IOWriter, query_args: dict):
             )
             out.write_event(dummy_event)
 
-async def _report_difference(dal: DAL, out: IOWriter):
-    today = date.today()
-    events_today = await dal.get_events(day=today)
-    events_yesterday = await dal.get_events(
-        day=today - timedelta(days=1)
+async def _report_difference(
+    dal: DAL, out: IOWriter, base_day: date
+):
+    events_this = await dal.get_events(day=base_day)
+    events_prev = await dal.get_events(
+        day=base_day - timedelta(days=1)
     )
 
     def totals_in(set: list[Event], exercise: Exercise):
@@ -59,8 +66,9 @@ async def _report_difference(dal: DAL, out: IOWriter):
         return total
 
     out.write_message('- daily difference -')
-    out.write_message('events yesterday: %d', len(events_yesterday))
-    out.write_message('events today: %d', len(events_today))
+    out.write_message(base_day.strftime('%d/%m/%Y'))
+    out.write_message('events day before: %d', len(events_prev))
+    out.write_message('events this day: %d', len(events_this))
 
     for type in EXERCISE_TYPES:
         exercises = await dal.get_exercises(type)
@@ -70,8 +78,8 @@ async def _report_difference(dal: DAL, out: IOWriter):
                 type=type,
                 exercise=exercise.name,
                 value=(
-                    totals_in(events_today, exercise) - \
-                    totals_in(events_yesterday, exercise)
+                    totals_in(events_this, exercise) - \
+                    totals_in(events_prev, exercise)
                 )
             )
             out.write_event(dummy_event, prefix='+/-')
@@ -82,23 +90,27 @@ async def report_action(dal: DAL, io: IO):
         ('daily', 'all time'), 'timespan', with_cancel=True
     )
 
+    day_minus = 0
     report_types = ['log', 'totals']
     if report_span == 'daily':
         report_types.append('difference')
+
+        day_minus = await io.read_int('for how many days ago?')
+        
     report_type = await io.read_choice(
         report_types, 'report type', with_cancel=True
     )
 
-    query_args = dict()
+    base_day = None
     if report_span == 'daily':
-        query_args['day'] = date.today()
+        base_day = date.today() - timedelta(days=day_minus)
 
     with io.temporary_write() as temp_out:
         if report_type == 'difference':
-            await _report_difference(dal, temp_out)
+            await _report_difference(dal, temp_out, base_day)
         elif report_type == 'log':
-            await _report_log(dal, temp_out, query_args)
+            await _report_log(dal, temp_out, base_day)
         else:
-            await _report_totals(dal, temp_out, query_args)
+            await _report_totals(dal, temp_out, base_day)
 
         await io.read_signal()
